@@ -1,0 +1,151 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "fait par 2009",
+    SubTitle = "rejoin le discord",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Joueur", Icon = "user" }),
+    Visuals = Window:AddTab({ Title = "Visuels", Icon = "eye" }),
+    Teleport = Window:AddTab({ Title = "Waypoints", Icon = "map-pin" }),
+    Misc = Window:AddTab({ Title = "Divers", Icon = "plus-circle" }),
+    Physics = Window:AddTab({ Title = "Physique", Icon = "activity" })
+}
+
+local lp = game.Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local waypoints = {}
+
+-- --- LOGIQUE DU VOL (FLY) ---
+local flying = false
+local flySpeed = 50
+local bv, bg = nil, nil
+local flyConnection = nil
+
+local function stopFlying()
+    flying = false
+    if flyConnection then flyConnection:Disconnect() end
+    if bv then bv:Destroy() end
+    if bg then bg:Destroy() end
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        lp.Character.Humanoid.PlatformStand = false
+        lp.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+end
+
+local function startFlying()
+    local char = lp.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    stopFlying()
+    flying = true
+    bg = Instance.new("BodyGyro", char.HumanoidRootPart)
+    bg.P = 9e4
+    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bv = Instance.new("BodyVelocity", char.HumanoidRootPart)
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    
+    flyConnection = RunService.RenderStepped:Connect(function()
+        if not flying or not char:FindFirstChild("HumanoidRootPart") then stopFlying() return end
+        local cam = workspace.CurrentCamera
+        local moveDir = Vector3.new(0,0,0)
+        if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+        bg.CFrame = cam.CFrame
+        bv.Velocity = moveDir * flySpeed
+    end)
+end
+
+-- --- ONGLET JOUEUR ---
+Tabs.Main:AddSlider("WS", { Title = "Vitesse", Default = 16, Min = 16, Max = 250, Rounding = 1, Callback = function(v) if lp.Character then lp.Character.Humanoid.WalkSpeed = v end end })
+Tabs.Main:AddSlider("JP", { Title = "Saut", Default = 50, Min = 50, Max = 500, Rounding = 1, Callback = function(v) if lp.Character then lp.Character.Humanoid.JumpPower = v end end })
+Tabs.Main:AddToggle("InfJump", { Title = "Saut Infini", Default = false, Callback = function(v) _G.InfJump = v end })
+
+UIS.JumpRequest:Connect(function()
+    if _G.InfJump and lp.Character then lp.Character.Humanoid:ChangeState("Jumping") end
+end)
+
+-- --- ONGLET VISUELS (ESP & VIDÉO) ---
+Tabs.Visuals:AddToggle("ESP", {
+    Title = "ESP Joueurs",
+    Default = false,
+    Callback = function(state)
+        _G.ESP = state
+        RunService.Heartbeat:Connect(function()
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= lp and p.Character then
+                    if _G.ESP then
+                        if not p.Character:FindFirstChild("GeminiESP") then
+                            local h = Instance.new("Highlight", p.Character)
+                            h.Name = "GeminiESP"
+                            h.FillColor = Color3.fromRGB(255, 0, 0)
+                        end
+                    else
+                        if p.Character:FindFirstChild("GeminiESP") then p.Character.GeminiESP:Destroy() end
+                    end
+                end
+            end
+        end)
+    end
+})
+
+Tabs.Visuals:AddButton({
+    Title = "Devenir Invisible (Client)",
+    Callback = function()
+        for _, v in pairs(lp.Character:GetDescendants()) do
+            if v:IsA("BasePart") or v:IsA("Decal") then v.Transparency = 1 end
+        end
+    end
+})
+
+-- --- ONGLET WAYPOINTS ---
+local WaypointDropdown = Tabs.Teleport:AddDropdown("WPList", { Title = "Waypoints", Values = {}, Multi = false })
+Tabs.Teleport:AddButton({
+    Title = "Enregistrer Position",
+    Callback = function()
+        local name = "Point " .. (#waypoints + 1)
+        table.insert(waypoints, {Name = name, CFrame = lp.Character.HumanoidRootPart.CFrame})
+        local names = {}
+        for i, v in pairs(waypoints) do table.insert(names, v.Name) end
+        WaypointDropdown:SetValues(names)
+    end
+})
+
+-- --- ONGLET DIVERS (FLY & ANTI-FLING) ---
+Tabs.Misc:AddToggle("Fly", { Title = "Voler (Fly)", Default = false, Callback = function(v) if v then startFlying() else stopFlying() end end })
+Tabs.Misc:AddSlider("FlySpd", { Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Rounding = 1, Callback = function(v) flySpeed = v end })
+Tabs.Misc:AddToggle("AntiFling", {
+    Title = "Protection Anti-Fling",
+    Default = false,
+    Callback = function(v)
+        _G.AntiFling = v
+        RunService.Heartbeat:Connect(function()
+            if _G.AntiFling and lp.Character then
+                lp.Character.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
+                lp.Character.HumanoidRootPart.RotVelocity = Vector3.new(0,0,0)
+            end
+        end)
+    end
+})
+
+-- --- ONGLET PHYSIQUE (ÉDUCATIF) ---
+Tabs.Physics:AddButton({
+    Title = "Effet Tornade",
+    Callback = function()
+        local p = Instance.new("ParticleEmitter", lp.Character.HumanoidRootPart)
+        p.Texture = "rbxassetid://2430535539"
+        p.Size = NumberSequence.new(2, 5)
+        p.Rate = 50
+    end
+})
+
+Window:SelectTab(1)
+Fluent:Notify({ Title = "Gemini Hub", Content = "Script complet prêt pour ta vidéo !", Duration = 5 })
