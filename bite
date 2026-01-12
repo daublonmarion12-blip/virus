@@ -1,79 +1,132 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
-local Window = Fluent:CreateWindow({
-    Title = "VIRUS/BITE - FIX V3",
-    SubTitle = "par 2009",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = false, -- Désactivé pour booster les FPS
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
-})
-
-local Tabs = {
-    Combat = Window:AddTab({ Title = "Combat", Icon = "target" }),
-    Physique = Window:AddTab({ Title = "Physique", Icon = "activity" })
-}
+-- Nettoyage pour éviter les bugs d'affichage
+for _, v in pairs(game:GetService("CoreGui"):GetChildren()) do
+    if v:IsA("ScreenGui") and (v.Name:find("Fluent") or v:FindFirstChild("Main")) then
+        v:Destroy()
+    end
+end
 
 local Config = {
     Aimbot = false,
     FOV = 150,
-    Fly = false,
-    Speed = 50
+    FlyEnabled = false,
+    FlySpeed = 50,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    InfiniteJump = false,
+    Running = true,
+    WPCount = 0
 }
 
--- AJOUT DES BOUTONS (Même si le reste bug, les boutons seront là)
-Tabs.Combat:AddToggle("Aim", {Title = "Activer Aimbot", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
-Tabs.Combat:AddSlider("FOV", {Title = "Rayon FOV", Default = 150, Min = 50, Max = 800, Callback = function(v) Config.FOV = v end})
+local Window = Fluent:CreateWindow({
+    Title = "VIRUS/BITE - MENU COMPLET",
+    SubTitle = "par 2009",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false, 
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl 
+})
 
-Tabs.Physique:AddToggle("Fly", {Title = "Activer Fly", Default = false}):OnChanged(function(v) Config.Fly = v end)
-Tabs.Physique:AddSlider("Vitesse", {Title = "Vitesse", Default = 50, Min = 10, Max = 300, Callback = function(v) Config.Speed = v end})
+-- Création des onglets
+local Tabs = {
+    Joueur = Window:AddTab({ Title = "Joueur", Icon = "user" }),
+    Combat = Window:AddTab({ Title = "Combat", Icon = "target" }),
+    Physique = Window:AddTab({ Title = "Physique", Icon = "zap" }),
+    Waypoints = Window:AddTab({ Title = "Waypoints", Icon = "map-pin" }),
+    Divers = Window:AddTab({ Title = "Divers", Icon = "settings" })
+}
 
--- LOGIQUE AIMBOT
+-- --- ONGLET JOUEUR ---
+Tabs.Joueur:AddSlider("SpeedSlider", {Title = "Vitesse de marche", Default = 16, Min = 16, Max = 300, Callback = function(v) Config.WalkSpeed = v end})
+Tabs.Joueur:AddSlider("JumpSlider", {Title = "Force de saut", Default = 50, Min = 50, Max = 500, Callback = function(v) Config.JumpPower = v end})
+Tabs.Joueur:AddToggle("InfJump", {Title = "Saut Infini", Default = false}):OnChanged(function(v) Config.InfiniteJump = v end)
+
+-- --- ONGLET COMBAT (AIMBOT) ---
+Tabs.Combat:AddToggle("AimActive", {Title = "Activer Aimbot", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
+Tabs.Combat:AddSlider("AimFOV", {Title = "Rayon du FOV", Default = 150, Min = 30, Max = 800, Callback = function(v) Config.FOV = v end})
+
+-- --- ONGLET PHYSIQUE (FLY) ---
+Tabs.Physique:AddToggle("FlyActive", {Title = "Activer le Vol (Fly)", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
+Tabs.Physique:AddSlider("FlySpeed", {Title = "Vitesse du Vol", Default = 50, Min = 10, Max = 500, Callback = function(v) Config.FlySpeed = v end})
+
+-- --- ONGLET WAYPOINTS ---
+Tabs.Waypoints:AddButton({
+    Title = "📍 Sauvegarder ma position",
+    Callback = function()
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            Config.WPCount = Config.WPCount + 1
+            local savedPos = root.CFrame
+            Tabs.Waypoints:AddButton({
+                Title = "TP à Position " .. Config.WPCount,
+                Callback = function() LocalPlayer.Character.HumanoidRootPart.CFrame = savedPos end
+            })
+        end
+    end
+})
+
+-- --- ONGLET DIVERS ---
+Tabs.Divers:AddButton({Title = "❌ Fermer le Menu", Callback = function() Config.Running = false Window:Destroy() end})
+
+-- --- LOGIQUE TECHNIQUE ---
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Visible = false
-FOVCircle.Thickness = 1.5
+FOVCircle.Thickness = 1
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Visible = false
 
 local function getTarget()
-    local target = nil
-    local dist = Config.FOV
-    for _, p in pairs(game.Players:GetPlayers()) do
-        if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-            local pos, vis = workspace.CurrentCamera:WorldToViewportPoint(p.Character.Head.Position)
-            if vis then
-                local mag = (Vector2.new(pos.X, pos.Y) - game:GetService("UserInputService"):GetMouseLocation()).Magnitude
-                if mag < dist then
-                    target = p
-                    dist = mag
-                end
+    local target, dist = nil, Config.FOV
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+            local pos, onS = Camera:WorldToViewportPoint(p.Character.Head.Position)
+            if onS then
+                local m = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                if m < dist then target = p dist = m end
             end
         end
     end
     return target
 end
 
-game:GetService("RunService").RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function()
+    if not Config.Running then return end
+    
+    -- Mise à jour Joueur
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = Config.WalkSpeed
+        LocalPlayer.Character.Humanoid.JumpPower = Config.JumpPower
+    end
+
+    -- Mise à jour Aimbot
     FOVCircle.Visible = Config.Aimbot
     FOVCircle.Radius = Config.FOV
-    FOVCircle.Position = game:GetService("UserInputService"):GetMouseLocation()
-
-    if Config.Aimbot and game:GetService("UserInputService"):IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+    FOVCircle.Position = UserInputService:GetMouseLocation()
+    if Config.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local t = getTarget()
-        if t then
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, t.Character.Head.Position)
-        end
+        if t then Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, t.Character.Head.Position) end
     end
 
-    if Config.Fly and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local root = game.Players.LocalPlayer.Character.HumanoidRootPart
-        root.Velocity = Vector3.new(0, 2, 0)
-        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then
-            root.CFrame = root.CFrame + (workspace.CurrentCamera.CFrame.LookVector * (Config.Speed / 10))
+    -- Mise à jour Fly
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        if Config.FlyEnabled then
+            local dir = Vector3.new(0, 0.5, 0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + (Camera.CFrame.LookVector * Config.FlySpeed) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - (Camera.CFrame.LookVector * Config.FlySpeed) end
+            root.Velocity = dir
         end
     end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if Config.InfiniteJump and LocalPlayer.Character then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end
 end)
 
 Window:SelectTab(1)
