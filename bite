@@ -1,10 +1,10 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- CONFIGURATION OBLIGATOIRE (Vérifie bien l'ordre 'local PRO_KEY')
+-- CONFIGURATION
 local PRO_KEY = "200988273645" 
 local WORKINK_LINK = "https://work.ink/2dLc/key"
 
--- 1. FENÊTRE DE LOGIN
+-- FENÊTRE DE LOGIN
 local LoginWindow = Fluent:CreateWindow({
     Title = "Xeno Hub | Authentification",
     SubTitle = "Accès par Work.ink",
@@ -29,44 +29,44 @@ LoginTab:AddInput("KeyInput", {
     Placeholder = "Clé : 2009...",
     Callback = function(Value)
         if Value == PRO_KEY then
-            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Préparation...", Duration = 3})
+            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Chargement...", Duration = 3})
             
-            -- Délai crucial pour laisser le temps à l'interface de se fermer
+            -- Délai de sécurité pour laisser le temps au script de respirer
             task.wait(0.5)
             LoginWindow:Destroy()
             task.wait(0.5) 
             
             ---------------------------------------------------------
-            -- 2. CRÉATION DU MENU PRINCIPAL (SÉCURISÉ)
+            -- CRÉATION DU MENU PRINCIPAL (AVEC SÉCURITÉ)
             ---------------------------------------------------------
-            local MainWin = Fluent:CreateWindow({
-                Title = "Xeno Hub | Premium",
-                SubTitle = "v2.5",
-                TabWidth = 160,
-                Size = UDim2.fromOffset(580, 460),
-                Acrylic = true,
-                Theme = "Dark",
-                MinimizeKey = Enum.KeyCode.LeftControl
-            })
+            local MainWin = nil
+            local success, err = pcall(function()
+                MainWin = Fluent:CreateWindow({
+                    Title = "Xeno Hub | Premium",
+                    SubTitle = "v2.5",
+                    TabWidth = 160,
+                    Size = UDim2.fromOffset(580, 460),
+                    Acrylic = true,
+                    Theme = "Dark"
+                })
+            end)
 
-            -- On ajoute les onglets uniquement si MainWin existe
-            if MainWin then
-                local Tabs = {
-                    Main = MainWin:AddTab({ Title = "Mouvement", Icon = "run" }),
-                    Visuals = MainWin:AddTab({ Title = "Visuels", Icon = "eye" })
-                }
+            -- On n'ajoute les onglets QUE si la fenêtre a été créée sans erreur
+            if success and MainWin then
+                local MainTab = MainWin:AddTab({ Title = "Mouvement", Icon = "run" })
+                local VisualTab = MainWin:AddTab({ Title = "Visuels", Icon = "eye" })
 
                 local lp = game.Players.LocalPlayer
                 local Flying, FlySpeed = false, 50
 
-                -- OPTIONS
-                Tabs.Main:AddToggle("f", {Title = "Activer le Vol", Default = false}):OnChanged(function(v) Flying = v end)
-                Tabs.Main:AddSlider("fs", {Title = "Vitesse", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
+                MainTab:AddToggle("f", {Title = "Vol (Fly)", Default = false}):OnChanged(function(v) Flying = v end)
+                MainTab:AddSlider("fs", {Title = "Vitesse", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
                 
                 MainWin:SelectTab(1)
+            else
+                warn("Erreur lors de la création de la fenêtre : " .. tostring(err))
             end
         else
-            -- Si la clé est mauvaise, on affiche l'erreur
             Fluent:Notify({Title = "Erreur", Content = "Clé invalide.", Duration = 3})
         end
     end
