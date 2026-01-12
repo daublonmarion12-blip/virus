@@ -1,6 +1,6 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- CONFIGURATION CORRIGÉE
+-- CONFIGURATION
 local PRO_KEY = "200988273645" 
 local WORKINK_LINK = "https://work.ink/2dLc/key"
 
@@ -16,30 +16,26 @@ local LoginWindow = Fluent:CreateWindow({
 
 local LoginTab = LoginWindow:AddTab({ Title = "Clé", Icon = "lock" })
 
-LoginTab:AddParagraph({
-    Title = "Système de Clé",
-    Content = "Obtenez la clé via le lien ci-dessous pour débloquer le script."
-})
-
 LoginTab:AddButton({
     Title = "Copier le lien de la clé",
+    Description = "Lien : work.ink/2dLc/key",
     Callback = function()
         setclipboard(WORKINK_LINK)
-        Fluent:Notify({Title = "Copié !", Content = "Lien Work.ink copié.", Duration = 5})
+        Fluent:Notify({Title = "Copié !", Content = "Lien copié.", Duration = 5})
     end
 })
 
 LoginTab:AddInput("KeyInput", {
     Title = "Entrez la clé ici",
-    Placeholder = "Clé commençant par 2009...",
+    Placeholder = "Clé : 2009...",
     Callback = function(Value)
         if Value == PRO_KEY then
-            Fluent:Notify({Title = "Succès", Content = "Chargement du menu...", Duration = 3})
+            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Chargement...", Duration = 3})
             task.wait(1)
             LoginWindow:Destroy()
             
             ---------------------------------------------------------
-            -- MENU PRINCIPAL (FLY, ESP, AIMBOT)
+            -- CRÉATION DU MENU PRINCIPAL (CORRIGÉ POUR ÉVITER L'ERREUR NIL)
             ---------------------------------------------------------
             local MainWin = Fluent:CreateWindow({
                 Title = "Xeno Hub | Premium",
@@ -64,7 +60,7 @@ LoginTab:AddInput("KeyInput", {
             local Flying, FlySpeed, AimbotEnabled, ESPEnabled, FOVRadius = false, 50, false, false, 150
             local StickyTarget = nil
 
-            -- ESP BOXES
+            -- ESP LOGIC
             local Boxes = {}
             local function CreateESP(p)
                 local b = Drawing.new("Square")
@@ -75,9 +71,8 @@ LoginTab:AddInput("KeyInput", {
             game.Players.PlayerAdded:Connect(function(v) if v ~= lp then CreateESP(v) end end)
 
             RunService.RenderStepped:Connect(function()
-                -- ESP Update
                 for player, box in pairs(Boxes) do
-                    if ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
+                    if ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         local pos, onScreen = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
                         if onScreen then
                             local sX, sY = 1000 / pos.Z, 2000 / pos.Z
@@ -86,12 +81,11 @@ LoginTab:AddInput("KeyInput", {
                     else box.Visible = false end
                 end
 
-                -- Aimbot Update
                 if AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
                     if not StickyTarget then
                         local mousePos, dist = UIS:GetMouseLocation(), FOVRadius
                         for _, v in pairs(game.Players:GetPlayers()) do
-                            if v ~= lp and v.Character and v.Character:FindFirstChild("Head") and v.Character.Humanoid.Health > 0 then
+                            if v ~= lp and v.Character and v.Character:FindFirstChild("Head") then
                                 local p, oS = camera:WorldToViewportPoint(v.Character.Head.Position)
                                 if oS then
                                     local d = (Vector2.new(p.X, p.Y) - mousePos).Magnitude
@@ -133,14 +127,14 @@ LoginTab:AddInput("KeyInput", {
                 end)
             end
 
-            Tabs.Main:AddToggle("f", {Title = "Activer le Vol", Default = false}):OnChanged(function(v) Flying = v if v then startFly() end end)
-            Tabs.Main:AddSlider("fs", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
-            Tabs.Combat:AddToggle("al", {Title = "Aimbot (Click Droit)", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
-            Tabs.Visuals:AddToggle("eb", {Title = "ESP Box", Default = false}):OnChanged(function(v) ESPEnabled = v end)
+            Tabs.Main:AddToggle("f", {Title = "Vol (Fly)", Default = false}):OnChanged(function(v) Flying = v if v then startFly() end end)
+            Tabs.Main:AddSlider("fs", {Title = "Vitesse Fly", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
+            Tabs.Combat:AddToggle("al", {Title = "Aimbot Lock", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
+            Tabs.Visuals:AddToggle("eb", {Title = "ESP Boxes", Default = false}):OnChanged(function(v) ESPEnabled = v end)
 
             MainWin:SelectTab(1)
         else
-            Fluent:Notify({Title = "Erreur", Content = "Clé incorrecte !", Duration = 3})
+            Fluent:Notify({Title = "Erreur", Content = "Clé invalide.", Duration = 3})
         end
     end
 })
