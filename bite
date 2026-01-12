@@ -5,7 +5,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- NETTOYAGE DES ANCIENNES FENÊTRES
+-- Nettoyage des anciens menus
 for _, v in pairs(game:GetService("CoreGui"):GetChildren()) do
     if v:IsA("ScreenGui") and (v.Name:find("Fluent") or v:FindFirstChild("Main")) then
         v:Destroy()
@@ -19,101 +19,123 @@ local Config = {
     FlySpeed = 50,
     InfiniteJump = false,
     Tornado = false,
+    YeetOnTouch = false,
     Running = true,
     WPCount = 0
 }
 
--- CERCLE FOV POUR L'AIMBOT
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Visible = false
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Color = Color3.fromRGB(255, 0, 0)
 
--- CRÉATION DU MENU (Comme sur tes photos)
 local Window = Fluent:CreateWindow({
     Title = "fait par 2009",
-    SubTitle = "rejoin le discord",
+    SubTitle = "virus/bite @ main",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
-    Theme = "Dark"
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl 
 })
 
 local Tabs = {
     Joueur = Window:AddTab({ Title = "Joueur", Icon = "user" }),
     Aimbot = Window:AddTab({ Title = "Aimbot", Icon = "target" }),
-    Visuels = Window:AddTab({ Title = "Visuels", Icon = "eye" }),
     Waypoints = Window:AddTab({ Title = "Waypoints", Icon = "map-pin" }),
-    Divers = Window:AddTab({ Title = "Divers", Icon = "plus-circle" }),
-    Physique = Window:AddTab({ Title = "Physique", Icon = "activity" })
+    Physique = Window:AddTab({ Title = "Physique", Icon = "activity" }),
+    Divers = Window:AddTab({ Title = "Divers", Icon = "plus-circle" })
 }
 
 -- --- JOUEUR ---
 Tabs.Joueur:AddSlider("Vitesse", {Title = "Vitesse", Default = 16, Min = 16, Max = 250, Rounding = 0, Callback = function(v) if LocalPlayer.Character then LocalPlayer.Character.Humanoid.WalkSpeed = v end end})
 Tabs.Joueur:AddToggle("SautInf", {Title = "Saut Infini", Default = false}):OnChanged(function(v) Config.InfiniteJump = v end)
 
--- --- AIMBOT (LA PARTIE QUI MANQUAIT) ---
-Tabs.Aimbot:AddToggle("AimActive", {Title = "Activer l'Aimbot", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
-Tabs.Aimbot:AddSlider("AimFOV", {Title = "Rayon du FOV", Default = 150, Min = 30, Max = 800, Rounding = 0, Callback = function(v) Config.FOV = v end})
+-- --- AIMBOT & SILENT AIM ---
+Tabs.Aimbot:AddToggle("AimActive", {Title = "Activer Aimbot & Silent Aim", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
+Tabs.Aimbot:AddSlider("AimFOV", {Title = "Rayon du Cercle", Default = 150, Min = 30, Max = 800, Rounding = 0, Callback = function(v) Config.FOV = v end})
 
--- --- VISUELS ---
-Tabs.Visuels:AddButton({Title = "Full Bright", Callback = function() game:GetService("Lighting").Brightness = 2 game:GetService("Lighting").ClockTime = 14 end})
-
--- --- WAYPOINTS (MULTI-POSITIONS) ---
+-- --- WAYPOINTS ---
 Tabs.Waypoints:AddButton({
-    Title = "Enregistrer Nouvelle Position",
+    Title = "📍 Enregistrer ma Position",
     Callback = function()
-        if LocalPlayer.Character then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             Config.WPCount = Config.WPCount + 1
-            local currentPos = LocalPlayer.Character.HumanoidRootPart.CFrame
+            local savedPos = LocalPlayer.Character.HumanoidRootPart.CFrame
             local wpName = "Position " .. Config.WPCount
             Tabs.Waypoints:AddButton({
                 Title = "Se TP à : " .. wpName,
-                Callback = function() LocalPlayer.Character.HumanoidRootPart.CFrame = currentPos end
+                Callback = function() LocalPlayer.Character.HumanoidRootPart.CFrame = savedPos end
             })
-            Fluent:Notify({Title = "Waypoints", Content = wpName .. " ajoutée !", Duration = 2})
         end
     end
 })
 
--- --- DIVERS ---
-Tabs.Divers:AddButton({Title = "SUPPRIMER LE SCRIPT", Callback = function() Config.Running = false FOVCircle:Remove() Window:Destroy() end})
-
 -- --- PHYSIQUE ---
-Tabs.Physique:AddToggle("TornadoEffect", {Title = "Effet Tornade", Default = false}):OnChanged(function(v) Config.Tornado = v end)
-Tabs.Physique:AddToggle("FlyCheck", {Title = "Activer Fly", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
+Tabs.Physique:AddToggle("FlyCheck", {Title = "Activer Fly (Z,Q,S,D)", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
+Tabs.Physique:AddSlider("FlySpeed", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 400, Rounding = 0, Callback = function(v) Config.FlySpeed = v end})
+Tabs.Physique:AddToggle("TouchYeet", {Title = "Propulser au toucher", Default = false}):OnChanged(function(v) Config.YeetOnTouch = v end)
 
--- --- LOGIQUE GLOBALE ---
+-- --- DIVERS ---
+Tabs.Divers:AddButton({Title = "❌ SUPPRIMER LE SCRIPT", Callback = function() Config.Running = false FOVCircle:Remove() Window:Destroy() end})
+
+-- --- LOGIQUE TECHNIQUE ---
+local function getClosest()
+    local target, dist = nil, Config.FOV
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+            local pos, onS = Camera:WorldToViewportPoint(p.Character.Head.Position)
+            if onS then
+                local mag = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                if mag < dist then target = p dist = mag end
+            end
+        end
+    end
+    return target
+end
+
+-- Silent Aim (Force les balles à toucher)
+local old; old = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    if Config.Aimbot and (method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
+        local t = getClosest()
+        if t then 
+            if method == "Raycast" then args[2] = (t.Character.Head.Position - args[1]).Unit * 5000
+            else args[1] = Ray.new(args[1].Origin, (t.Character.Head.Position - args[1].Origin).Unit * 5000) end
+        end
+    end
+    return old(self, unpack(args))
+end)
+
+local BV = Instance.new("BodyVelocity")
+local BG = Instance.new("BodyGyro")
+BV.MaxForce, BG.MaxTorque = Vector3.new(1e8,1e8,1e8), Vector3.new(1e8,1e8,1e8)
+
 RunService.RenderStepped:Connect(function()
     if not Config.Running then return end
-    
     FOVCircle.Visible = Config.Aimbot
     FOVCircle.Radius = Config.FOV
     FOVCircle.Position = UserInputService:GetMouseLocation()
 
-    -- Logique Aimbot
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        if Config.FlyEnabled then
+            BV.Parent, BG.Parent = root, root
+            BG.CFrame = Camera.CFrame
+            local d = Vector3.new(0,0,0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then d = d + Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then d = d - Camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then d = d - Camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then d = d + Camera.CFrame.RightVector end
+            BV.Velocity = d * Config.FlySpeed
+        else BV.Parent, BG.Parent = nil, nil end
+    end
+    
     if Config.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = nil
-        local shortest = Config.FOV
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-                local pos, onS = Camera:WorldToViewportPoint(p.Character.Head.Position)
-                if onS then
-                    local dist = (Vector2.new(pos.X, pos.Y) - FOVCircle.Position).Magnitude
-                    if dist < shortest then target = p shortest = dist end
-                end
-            end
-        end
-        if target then Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, target.Character.Head.Position) end
+        local t = getClosest()
+        if t then Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, t.Character.Head.Position) end
     end
-
-    -- Logique Tornade
-    if Config.Tornado and LocalPlayer.Character then
-        LocalPlayer.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(20), 0)
-    end
-end)
-
-UserInputService.JumpRequest:Connect(function()
-    if Config.InfiniteJump and LocalPlayer.Character then LocalPlayer.Character.Humanoid:ChangeState("Jumping") end
 end)
 
 Window:SelectTab(1)
