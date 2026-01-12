@@ -1,6 +1,6 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- CONFIGURATION (Vérifie bien ces deux lignes)
+-- CONFIGURATION
 local PRO_KEY = "200988273645" 
 local WORKINK_LINK = "https://work.ink/2dLc/key"
 
@@ -18,7 +18,6 @@ local LoginTab = LoginWindow:AddTab({ Title = "Clé", Icon = "lock" })
 
 LoginTab:AddButton({
     Title = "Copier le lien de la clé",
-    Description = "Lien : work.ink/2dLc/key",
     Callback = function()
         setclipboard(WORKINK_LINK)
         Fluent:Notify({Title = "Copié !", Content = "Lien copié dans le presse-papier.", Duration = 5})
@@ -30,12 +29,15 @@ LoginTab:AddInput("KeyInput", {
     Placeholder = "Clé : 2009...",
     Callback = function(Value)
         if Value == PRO_KEY then
-            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Chargement du menu...", Duration = 3})
-            task.wait(1)
+            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Préparation du menu...", Duration = 3})
+            
+            -- Délai pour fermer proprement la première fenêtre
+            task.wait(0.5)
             LoginWindow:Destroy()
+            task.wait(0.5) 
             
             ---------------------------------------------------------
-            -- 2. CRÉATION DU MENU PRINCIPAL (CORRIGÉ POUR L'ERREUR NIL)
+            -- 2. CRÉATION DU MENU PRINCIPAL (SÉCURISÉ)
             ---------------------------------------------------------
             local MainWin = Fluent:CreateWindow({
                 Title = "Xeno Hub | Premium",
@@ -47,53 +49,27 @@ LoginTab:AddInput("KeyInput", {
                 MinimizeKey = Enum.KeyCode.LeftControl
             })
 
-            -- Les onglets sont créés APRÈS la fenêtre
-            local Tabs = {
-                Main = MainWin:AddTab({ Title = "Mouvement", Icon = "run" }),
-                Combat = MainWin:AddTab({ Title = "Combat", Icon = "crosshair" }),
-                Visuals = MainWin:AddTab({ Title = "Visuels", Icon = "eye" })
-            }
+            -- Sécurité anti-crash "nil AddTab"
+            if MainWin then
+                local Tabs = {
+                    Main = MainWin:AddTab({ Title = "Mouvement", Icon = "run" }),
+                    Combat = MainWin:AddTab({ Title = "Combat", Icon = "crosshair" }),
+                    Visuals = MainWin:AddTab({ Title = "Visuels", Icon = "eye" })
+                }
 
-            local lp = game.Players.LocalPlayer
-            local camera = workspace.CurrentCamera
-            local UIS = game:GetService("UserInputService")
-            local RunService = game:GetService("RunService")
-            local Flying, FlySpeed, AimbotEnabled, ESPEnabled, FOVRadius = false, 50, false, false, 150
+                local lp = game.Players.LocalPlayer
+                local camera = workspace.CurrentCamera
+                local UIS = game:GetService("UserInputService")
+                local Flying, FlySpeed, AimbotEnabled, ESPEnabled = false, 50, false, false
 
-            -- LOGIQUE DU FLY
-            local function startFly()
-                local char = lp.Character or lp.CharacterAdded:Wait()
-                local root = char:WaitForChild("HumanoidRootPart")
-                char.Humanoid.PlatformStand = true
-                local bv = Instance.new("BodyVelocity", root)
-                bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                local bg = Instance.new("BodyGyro", root)
-                bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                task.spawn(function()
-                    while Flying do
-                        local dir = Vector3.new(0,0,0)
-                        if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + camera.CFrame.LookVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - camera.CFrame.LookVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - camera.CFrame.RightVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + camera.CFrame.RightVector end
-                        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
-                        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
-                        bg.CFrame = camera.CFrame
-                        bv.Velocity = dir * FlySpeed
-                        task.wait()
-                    end
-                    bv:Destroy() bg:Destroy()
-                    char.Humanoid.PlatformStand = false
-                end)
+                -- OPTIONS DU MENU
+                Tabs.Main:AddToggle("f", {Title = "Activer le Vol", Default = false}):OnChanged(function(v) Flying = v end)
+                Tabs.Main:AddSlider("fs", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
+                Tabs.Combat:AddToggle("al", {Title = "Aimbot Lock", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
+                Tabs.Visuals:AddToggle("eb", {Title = "ESP Box", Default = false}):OnChanged(function(v) ESPEnabled = v end)
+
+                MainWin:SelectTab(1)
             end
-
-            -- AJOUT DES OPTIONS DANS LES ONGLETS
-            Tabs.Main:AddToggle("f", {Title = "Activer le Vol", Default = false}):OnChanged(function(v) Flying = v if v then startFly() end end)
-            Tabs.Main:AddSlider("fs", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
-            Tabs.Combat:AddToggle("al", {Title = "Aimbot Lock", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
-            Tabs.Visuals:AddToggle("eb", {Title = "ESP Box", Default = false}):OnChanged(function(v) ESPEnabled = v end)
-
-            MainWin:SelectTab(1)
         else
             Fluent:Notify({Title = "Erreur", Content = "Clé invalide.", Duration = 3})
         end
