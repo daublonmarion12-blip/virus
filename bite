@@ -1,6 +1,6 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- CONFIGURATION
+-- CONFIGURATION OBLIGATOIRE (Vérifie bien l'ordre 'local PRO_KEY')
 local PRO_KEY = "200988273645" 
 local WORKINK_LINK = "https://work.ink/2dLc/key"
 
@@ -20,7 +20,7 @@ LoginTab:AddButton({
     Title = "Copier le lien de la clé",
     Callback = function()
         setclipboard(WORKINK_LINK)
-        Fluent:Notify({Title = "Copié !", Content = "Lien copié dans le presse-papier.", Duration = 5})
+        Fluent:Notify({Title = "Copié !", Content = "Lien copié.", Duration = 5})
     end
 })
 
@@ -29,9 +29,9 @@ LoginTab:AddInput("KeyInput", {
     Placeholder = "Clé : 2009...",
     Callback = function(Value)
         if Value == PRO_KEY then
-            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Préparation du menu...", Duration = 3})
+            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Préparation...", Duration = 3})
             
-            -- Délai pour fermer proprement la première fenêtre
+            -- Délai crucial pour laisser le temps à l'interface de se fermer
             task.wait(0.5)
             LoginWindow:Destroy()
             task.wait(0.5) 
@@ -49,28 +49,24 @@ LoginTab:AddInput("KeyInput", {
                 MinimizeKey = Enum.KeyCode.LeftControl
             })
 
-            -- Sécurité anti-crash "nil AddTab"
+            -- On ajoute les onglets uniquement si MainWin existe
             if MainWin then
                 local Tabs = {
                     Main = MainWin:AddTab({ Title = "Mouvement", Icon = "run" }),
-                    Combat = MainWin:AddTab({ Title = "Combat", Icon = "crosshair" }),
                     Visuals = MainWin:AddTab({ Title = "Visuels", Icon = "eye" })
                 }
 
                 local lp = game.Players.LocalPlayer
-                local camera = workspace.CurrentCamera
-                local UIS = game:GetService("UserInputService")
-                local Flying, FlySpeed, AimbotEnabled, ESPEnabled = false, 50, false, false
+                local Flying, FlySpeed = false, 50
 
-                -- OPTIONS DU MENU
+                -- OPTIONS
                 Tabs.Main:AddToggle("f", {Title = "Activer le Vol", Default = false}):OnChanged(function(v) Flying = v end)
-                Tabs.Main:AddSlider("fs", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
-                Tabs.Combat:AddToggle("al", {Title = "Aimbot Lock", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
-                Tabs.Visuals:AddToggle("eb", {Title = "ESP Box", Default = false}):OnChanged(function(v) ESPEnabled = v end)
-
+                Tabs.Main:AddSlider("fs", {Title = "Vitesse", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
+                
                 MainWin:SelectTab(1)
             end
         else
+            -- Si la clé est mauvaise, on affiche l'erreur
             Fluent:Notify({Title = "Erreur", Content = "Clé invalide.", Duration = 3})
         end
     end
