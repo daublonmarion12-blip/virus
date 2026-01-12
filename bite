@@ -1,10 +1,10 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- CONFIGURATION
+-- CONFIGURATION DE VOTRE CLÉ ET LIEN
 local PRO_KEY = "200988273645" 
 local WORKINK_LINK = "https://work.ink/2dLc/key"
 
--- FENÊTRE DE LOGIN
+-- FENÊTRE DE LOGIN (KEY SYSTEM)
 local LoginWindow = Fluent:CreateWindow({
     Title = "Xeno Hub | Authentification",
     SubTitle = "Accès par Work.ink",
@@ -18,29 +18,30 @@ local LoginTab = LoginWindow:AddTab({ Title = "Clé", Icon = "lock" })
 
 LoginTab:AddParagraph({
     Title = "Système de Clé",
-    Content = "Obtenez la clé via le lien ci-dessous pour débloquer le script."
+    Content = "Obtenez la clé via le lien ci-dessous pour débloquer le script complet."
 })
 
 LoginTab:AddButton({
     Title = "Copier le lien de la clé",
-    Description = "Colle ce lien dans ton navigateur",
+    Description = "Lien : work.ink/2dLc/key",
     Callback = function()
         setclipboard(WORKINK_LINK)
-        Fluent:Notify({Title = "Copié !", Content = "Lien Work.ink copié.", Duration = 5})
+        Fluent:Notify({Title = "Copié !", Content = "Lien copié dans le presse-papier.", Duration = 5})
     end
 })
 
 LoginTab:AddInput("KeyInput", {
     Title = "Entrez la clé ici",
-    Placeholder = "Clé commençant par 2009...",
+    Default = "",
+    Placeholder = "Clé : 2009...",
     Callback = function(Value)
         if Value == PRO_KEY then
-            Fluent:Notify({Title = "Succès", Content = "Chargement du menu...", Duration = 3})
+            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Chargement du menu...", Duration = 3})
             task.wait(1)
             LoginWindow:Destroy()
             
             ---------------------------------------------------------
-            -- TON SCRIPT DE CHEAT (FLY, ESP, AIMBOT, ETC.)
+            -- VOTRE MENU DE CHEAT COMPLET
             ---------------------------------------------------------
             local MainWin = Fluent:CreateWindow({
                 Title = "Xeno Hub | Premium",
