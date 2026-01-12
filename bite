@@ -1,10 +1,10 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- CONFIGURATION DE VOTRE CLÉ ET LIEN (CORRIGÉ)
+-- CONFIGURATION CORRIGÉE
 local PRO_KEY = "200988273645" 
 local WORKINK_LINK = "https://work.ink/2dLc/key"
 
--- FENÊTRE DE LOGIN (KEY SYSTEM)
+-- FENÊTRE DE LOGIN
 local LoginWindow = Fluent:CreateWindow({
     Title = "Xeno Hub | Authentification",
     SubTitle = "Accès par Work.ink",
@@ -18,30 +18,28 @@ local LoginTab = LoginWindow:AddTab({ Title = "Clé", Icon = "lock" })
 
 LoginTab:AddParagraph({
     Title = "Système de Clé",
-    Content = "Obtenez la clé via le lien ci-dessous pour débloquer le script complet."
+    Content = "Obtenez la clé via le lien ci-dessous pour débloquer le script."
 })
 
 LoginTab:AddButton({
     Title = "Copier le lien de la clé",
-    Description = "Lien : work.ink/2dLc/key",
     Callback = function()
         setclipboard(WORKINK_LINK)
-        Fluent:Notify({Title = "Copié !", Content = "Lien copié dans le presse-papier.", Duration = 5})
+        Fluent:Notify({Title = "Copié !", Content = "Lien Work.ink copié.", Duration = 5})
     end
 })
 
 LoginTab:AddInput("KeyInput", {
     Title = "Entrez la clé ici",
-    Default = "",
-    Placeholder = "Clé : 2009...",
+    Placeholder = "Clé commençant par 2009...",
     Callback = function(Value)
         if Value == PRO_KEY then
-            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Chargement du menu...", Duration = 3})
+            Fluent:Notify({Title = "Succès", Content = "Chargement du menu...", Duration = 3})
             task.wait(1)
             LoginWindow:Destroy()
             
             ---------------------------------------------------------
-            -- VOTRE MENU DE CHEAT COMPLET
+            -- MENU PRINCIPAL (FLY, ESP, AIMBOT)
             ---------------------------------------------------------
             local MainWin = Fluent:CreateWindow({
                 Title = "Xeno Hub | Premium",
@@ -55,7 +53,6 @@ LoginTab:AddInput("KeyInput", {
 
             local Tabs = {
                 Main = MainWin:AddTab({ Title = "Mouvement", Icon = "run" }),
-                Player = MainWin:AddTab({ Title = "Joueur", Icon = "user" }),
                 Combat = MainWin:AddTab({ Title = "Combat", Icon = "crosshair" }),
                 Visuals = MainWin:AddTab({ Title = "Visuels", Icon = "eye" })
             }
@@ -66,10 +63,8 @@ LoginTab:AddInput("KeyInput", {
             local RunService = game:GetService("RunService")
             local Flying, FlySpeed, AimbotEnabled, ESPEnabled, FOVRadius = false, 50, false, false, 150
             local StickyTarget = nil
-            local InfJump = false
 
-            UIS.JumpRequest:Connect(function() if InfJump then lp.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping") end end)
-
+            -- ESP BOXES
             local Boxes = {}
             local function CreateESP(p)
                 local b = Drawing.new("Square")
@@ -80,6 +75,7 @@ LoginTab:AddInput("KeyInput", {
             game.Players.PlayerAdded:Connect(function(v) if v ~= lp then CreateESP(v) end end)
 
             RunService.RenderStepped:Connect(function()
+                -- ESP Update
                 for player, box in pairs(Boxes) do
                     if ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
                         local pos, onScreen = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
@@ -90,6 +86,7 @@ LoginTab:AddInput("KeyInput", {
                     else box.Visible = false end
                 end
 
+                -- Aimbot Update
                 if AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
                     if not StickyTarget then
                         local mousePos, dist = UIS:GetMouseLocation(), FOVRadius
@@ -109,6 +106,7 @@ LoginTab:AddInput("KeyInput", {
                 else StickyTarget = nil end
             end)
 
+            -- FLY LOGIC
             local function startFly()
                 local char = lp.Character or lp.CharacterAdded:Wait()
                 local root = char:WaitForChild("HumanoidRootPart")
@@ -137,14 +135,12 @@ LoginTab:AddInput("KeyInput", {
 
             Tabs.Main:AddToggle("f", {Title = "Activer le Vol", Default = false}):OnChanged(function(v) Flying = v if v then startFly() end end)
             Tabs.Main:AddSlider("fs", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
-            Tabs.Player:AddSlider("ws", {Title = "WalkSpeed", Default = 16, Min = 16, Max = 250, Callback = function(v) if lp.Character then lp.Character.Humanoid.WalkSpeed = v end end})
-            Tabs.Player:AddToggle("ij", {Title = "Infinite Jump", Default = false}):OnChanged(function(v) InfJump = v end)
-            Tabs.Combat:AddToggle("al", {Title = "Hard Sticky Lock", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
-            Tabs.Visuals:AddToggle("eb", {Title = "ESP Box (Tout le monde)", Default = false}):OnChanged(function(v) ESPEnabled = v end)
+            Tabs.Combat:AddToggle("al", {Title = "Aimbot (Click Droit)", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
+            Tabs.Visuals:AddToggle("eb", {Title = "ESP Box", Default = false}):OnChanged(function(v) ESPEnabled = v end)
 
             MainWin:SelectTab(1)
         else
-            Fluent:Notify({Title = "Erreur", Content = "Clé invalide.", Duration = 3})
+            Fluent:Notify({Title = "Erreur", Content = "Clé incorrecte !", Duration = 3})
         end
     end
 })
