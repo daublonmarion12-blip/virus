@@ -23,12 +23,12 @@ local Config = {
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2
-FOVCircle.Color = Color3.fromRGB(255, 0, 0)
+FOVCircle.Color = Color3.fromRGB(0, 255, 0) -- Vert pour FPS Clicker
 FOVCircle.Visible = false
 
 local Window = Fluent:CreateWindow({
-    Title = "fait par 2009",
-    SubTitle = "virus/bite @ main",
+    Title = "FPS CLICKER CHEAT",
+    SubTitle = "par 2009",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Theme = "Dark",
@@ -36,36 +36,48 @@ local Window = Fluent:CreateWindow({
 })
 
 local Tabs = {
-    Main = Window:AddTab({ Title = "Combat", Icon = "target" }),
-    Physique = Window:AddTab({ Title = "Physique", Icon = "activity" }),
-    Divers = Window:AddTab({ Title = "Divers", Icon = "plus-circle" })
+    Combat = Window:AddTab({ Title = "Combat", Icon = "target" }),
+    Mouvement = Window:AddTab({ Title = "Mouvement", Icon = "wind" }),
+    Divers = Window:AddTab({ Title = "Divers", Icon = "settings" })
 }
 
--- FONCTION CIBLE
+-- FONCTION CIBLE (Cherche le joueur le plus proche du centre)
 local function getClosest()
     local target, dist = nil, Config.FOV
+    local mouseLoc = UserInputService:GetMouseLocation()
+
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
-            local pos, onS = Camera:WorldToViewportPoint(p.Character.Head.Position)
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local head = p.Character:FindFirstChild("Head") or p.Character:FindFirstChild("HumanoidRootPart")
+            local pos, onS = Camera:WorldToViewportPoint(head.Position)
+            
             if onS then
-                local mag = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
-                if mag < dist then target = p dist = mag end
+                local mag = (Vector2.new(pos.X, pos.Y) - mouseLoc).Magnitude
+                if mag < dist then
+                    -- Vérifie si le joueur est vivant
+                    if p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                        target = p
+                        dist = mag
+                    end
+                end
             end
         end
     end
     return target
 end
 
--- --- SILENT AIM AGRESSIF ---
+-- --- SILENT AIM SPÉCIAL FPS CLICKER ---
+-- On modifie "Hit" et "Target" pour que le clic enregistre le dégât
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(self, index)
-    if Config.Aimbot and self == Mouse and (index == "Hit" or index == "Target") then
+    if Config.Aimbot and not checkcaller() and self == Mouse then
         local t = getClosest()
-        if t and t.Character and t.Character:FindFirstChild("Head") then
+        if t and t.Character then
+            local targetPart = t.Character:FindFirstChild("Head") or t.Character:FindFirstChild("HumanoidRootPart")
             if index == "Hit" then
-                return t.Character.Head.CFrame
+                return targetPart.CFrame
             elseif index == "Target" then
-                return t.Character.Head
+                return targetPart
             end
         end
     end
@@ -73,11 +85,13 @@ oldIndex = hookmetamethod(game, "__index", function(self, index)
 end)
 
 -- --- INTERFACE ---
-Tabs.Main:AddToggle("AimActive", {Title = "Activer Aimbot & Dégâts", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
-Tabs.Main:AddSlider("AimFOV", {Title = "Taille FOV", Default = 150, Min = 30, Max = 800, Callback = function(v) Config.FOV = v end})
+Tabs.Combat:AddToggle("AimActive", {Title = "Activer Auto-Dégâts", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
+Tabs.Combat:AddSlider("AimFOV", {Title = "Rayon de capture", Default = 150, Min = 30, Max = 800, Callback = function(v) Config.FOV = v end})
 
-Tabs.Physique:AddToggle("FlyCheck", {Title = "Activer Fly", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
-Tabs.Physique:AddSlider("FlySpeed", {Title = "Vitesse Fly", Default = 50, Min = 10, Max = 300, Callback = function(v) Config.FlySpeed = v end})
+Tabs.Mouvement:AddToggle("FlyCheck", {Title = "Activer Vol (Fly)", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
+Tabs.Mouvement:AddSlider("FlySpeed", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Callback = function(v) Config.FlySpeed = v end})
+
+Tabs.Divers:AddButton({Title = "Détruire le Cheat", Callback = function() Config.Running = false FOVCircle:Remove() Window:Destroy() end})
 
 -- --- BOUCLE DE RENDU ---
 RunService.RenderStepped:Connect(function()
@@ -87,22 +101,26 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Radius = Config.FOV
     FOVCircle.Position = UserInputService:GetMouseLocation()
 
-    -- Verrouillage Caméra
+    -- Verrouillage Visuel (Optionnel pour Silent Aim mais aide à suivre)
     if Config.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local t = getClosest()
-        if t then Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, t.Character.Head.Position) end
+        if t and t.Character and t.Character:FindFirstChild("Head") then
+            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, t.Character.Head.Position)
+        end
     end
     
-    -- Fly
-    if Config.FlyEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local root = LocalPlayer.Character.HumanoidRootPart
-        local d = Vector3.new(0,0,0)
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then d = d + Camera.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then d = d - Camera.CFrame.LookVector end
-        root.Velocity = d * Config.FlySpeed
-        root.Anchored = (d == Vector3.new(0,0,0)) -- Évite de tomber
-    elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.Anchored = false
+    -- Fly Système (Simple et efficace)
+    local char = LocalPlayer.Character
+    if Config.FlyEnabled and char and char:FindFirstChild("HumanoidRootPart") then
+        local root = char.HumanoidRootPart
+        local vel = Vector3.new(0, 0.5, 0) -- Maintien en l'air
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then vel = vel + (Camera.CFrame.LookVector * Config.FlySpeed) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then vel = vel - (Camera.CFrame.LookVector * Config.FlySpeed) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then vel = vel - (Camera.CFrame.RightVector * Config.FlySpeed) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then vel = vel + (Camera.CFrame.RightVector * Config.FlySpeed) end
+        
+        root.Velocity = vel
     end
 end)
 
