@@ -1,6 +1,6 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- CONFIGURATION DE VOTRE CLÉ ET LIEN
+-- CONFIGURATION DE VOTRE CLÉ ET LIEN (CORRIGÉ)
 local PRO_KEY = "200988273645" 
 local WORKINK_LINK = "https://work.ink/2dLc/key"
 
