@@ -1,10 +1,10 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- CONFIGURATION
+-- CONFIGURATION (Vérifie bien ces deux lignes)
 local PRO_KEY = "200988273645" 
 local WORKINK_LINK = "https://work.ink/2dLc/key"
 
--- FENÊTRE DE LOGIN
+-- 1. FENÊTRE DE LOGIN
 local LoginWindow = Fluent:CreateWindow({
     Title = "Xeno Hub | Authentification",
     SubTitle = "Accès par Work.ink",
@@ -21,7 +21,7 @@ LoginTab:AddButton({
     Description = "Lien : work.ink/2dLc/key",
     Callback = function()
         setclipboard(WORKINK_LINK)
-        Fluent:Notify({Title = "Copié !", Content = "Lien copié.", Duration = 5})
+        Fluent:Notify({Title = "Copié !", Content = "Lien copié dans le presse-papier.", Duration = 5})
     end
 })
 
@@ -30,12 +30,12 @@ LoginTab:AddInput("KeyInput", {
     Placeholder = "Clé : 2009...",
     Callback = function(Value)
         if Value == PRO_KEY then
-            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Chargement...", Duration = 3})
+            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Chargement du menu...", Duration = 3})
             task.wait(1)
             LoginWindow:Destroy()
             
             ---------------------------------------------------------
-            -- CRÉATION DU MENU PRINCIPAL (CORRIGÉ POUR ÉVITER L'ERREUR NIL)
+            -- 2. CRÉATION DU MENU PRINCIPAL (CORRIGÉ POUR L'ERREUR NIL)
             ---------------------------------------------------------
             local MainWin = Fluent:CreateWindow({
                 Title = "Xeno Hub | Premium",
@@ -47,6 +47,7 @@ LoginTab:AddInput("KeyInput", {
                 MinimizeKey = Enum.KeyCode.LeftControl
             })
 
+            -- Les onglets sont créés APRÈS la fenêtre
             local Tabs = {
                 Main = MainWin:AddTab({ Title = "Mouvement", Icon = "run" }),
                 Combat = MainWin:AddTab({ Title = "Combat", Icon = "crosshair" }),
@@ -58,49 +59,8 @@ LoginTab:AddInput("KeyInput", {
             local UIS = game:GetService("UserInputService")
             local RunService = game:GetService("RunService")
             local Flying, FlySpeed, AimbotEnabled, ESPEnabled, FOVRadius = false, 50, false, false, 150
-            local StickyTarget = nil
 
-            -- ESP LOGIC
-            local Boxes = {}
-            local function CreateESP(p)
-                local b = Drawing.new("Square")
-                b.Thickness, b.Color, b.Transparency, b.Visible = 1, Color3.fromRGB(255, 0, 0), 1, false
-                Boxes[p] = b
-            end
-            for _, v in pairs(game.Players:GetPlayers()) do if v ~= lp then CreateESP(v) end end
-            game.Players.PlayerAdded:Connect(function(v) if v ~= lp then CreateESP(v) end end)
-
-            RunService.RenderStepped:Connect(function()
-                for player, box in pairs(Boxes) do
-                    if ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        local pos, onScreen = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
-                        if onScreen then
-                            local sX, sY = 1000 / pos.Z, 2000 / pos.Z
-                            box.Size, box.Position, box.Visible = Vector2.new(sX, sY), Vector2.new(pos.X - sX / 2, pos.Y - sY / 2), true
-                        else box.Visible = false end
-                    else box.Visible = false end
-                end
-
-                if AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-                    if not StickyTarget then
-                        local mousePos, dist = UIS:GetMouseLocation(), FOVRadius
-                        for _, v in pairs(game.Players:GetPlayers()) do
-                            if v ~= lp and v.Character and v.Character:FindFirstChild("Head") then
-                                local p, oS = camera:WorldToViewportPoint(v.Character.Head.Position)
-                                if oS then
-                                    local d = (Vector2.new(p.X, p.Y) - mousePos).Magnitude
-                                    if d < dist then dist = d StickyTarget = v end
-                                end
-                            end
-                        end
-                    end
-                    if StickyTarget and StickyTarget.Character then
-                        camera.CFrame = CFrame.new(camera.CFrame.Position, StickyTarget.Character.Head.Position)
-                    end
-                else StickyTarget = nil end
-            end)
-
-            -- FLY LOGIC
+            -- LOGIQUE DU FLY
             local function startFly()
                 local char = lp.Character or lp.CharacterAdded:Wait()
                 local root = char:WaitForChild("HumanoidRootPart")
@@ -127,10 +87,11 @@ LoginTab:AddInput("KeyInput", {
                 end)
             end
 
-            Tabs.Main:AddToggle("f", {Title = "Vol (Fly)", Default = false}):OnChanged(function(v) Flying = v if v then startFly() end end)
-            Tabs.Main:AddSlider("fs", {Title = "Vitesse Fly", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
+            -- AJOUT DES OPTIONS DANS LES ONGLETS
+            Tabs.Main:AddToggle("f", {Title = "Activer le Vol", Default = false}):OnChanged(function(v) Flying = v if v then startFly() end end)
+            Tabs.Main:AddSlider("fs", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
             Tabs.Combat:AddToggle("al", {Title = "Aimbot Lock", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
-            Tabs.Visuals:AddToggle("eb", {Title = "ESP Boxes", Default = false}):OnChanged(function(v) ESPEnabled = v end)
+            Tabs.Visuals:AddToggle("eb", {Title = "ESP Box", Default = false}):OnChanged(function(v) ESPEnabled = v end)
 
             MainWin:SelectTab(1)
         else
