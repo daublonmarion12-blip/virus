@@ -24,14 +24,11 @@ local Config = {
     WPCount = 0
 }
 
--- CRÉATION DU CERCLE FOV (ASSURÉE)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2
 FOVCircle.NumSides = 60
-FOVCircle.Radius = Config.FOV
-FOVCircle.Filled = false
+FOVCircle.Color = Color3.fromRGB(255, 0, 0)
 FOVCircle.Transparency = 1
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Visible = false
 
 local Window = Fluent:CreateWindow({
@@ -52,45 +49,12 @@ local Tabs = {
     Divers = Window:AddTab({ Title = "Divers", Icon = "plus-circle" })
 }
 
--- --- INTERFACE ---
-Tabs.Aimbot:AddToggle("AimActive", {Title = "Activer Aimbot & FOV", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
-Tabs.Aimbot:AddSlider("AimFOV", {Title = "Taille du FOV", Default = 150, Min = 30, Max = 800, Rounding = 0, Callback = function(v) Config.FOV = v end})
-
-Tabs.Joueur:AddSlider("Vitesse", {Title = "Vitesse", Default = 16, Min = 16, Max = 250, Rounding = 0, Callback = function(v) if LocalPlayer.Character then LocalPlayer.Character.Humanoid.WalkSpeed = v end end})
-
-Tabs.Physique:AddToggle("FlyCheck", {Title = "Fly (CTRL pour cacher menu)", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
-Tabs.Physique:AddToggle("TouchYeet", {Title = "Propulser au toucher", Default = false}):OnChanged(function(v) Config.YeetOnTouch = v end)
-
-Tabs.Waypoints:AddButton({
-    Title = "📍 Sauvegarder Position",
-    Callback = function()
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            Config.WPCount = Config.WPCount + 1
-            local savedPos = LocalPlayer.Character.HumanoidRootPart.CFrame
-            local wpName = "Position " .. Config.WPCount
-            Tabs.Waypoints:AddButton({
-                Title = "TP à : " .. wpName,
-                Callback = function() LocalPlayer.Character.HumanoidRootPart.CFrame = savedPos end
-            })
-        end
-    end
-})
-
-Tabs.Divers:AddButton({
-    Title = "❌ SUPPRIMER LE SCRIPT",
-    Callback = function()
-        Config.Running = false
-        FOVCircle:Remove()
-        Window:Destroy()
-    end
-})
-
--- --- LOGIQUE ---
+-- --- LOGIQUE DE CIBLE ---
 local function getClosest()
     local target, dist = nil, Config.FOV
     local mousePos = UserInputService:GetMouseLocation()
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
             local pos, onS = Camera:WorldToViewportPoint(p.Character.Head.Position)
             if onS then
                 local mag = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
@@ -101,40 +65,52 @@ local function getClosest()
     return target
 end
 
-local BV = Instance.new("BodyVelocity")
-local BG = Instance.new("BodyGyro")
-BV.MaxForce, BG.MaxTorque = Vector3.new(1e8,1e8,1e8), Vector3.new(1e8,1e8,1e8)
+-- --- REDIRECTION DES TIRS (POUR LES DÉGÂTS) ---
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if Config.Aimbot and (method == "FindPartOnRayWithIgnoreList" or method == "Raycast") then
+        local t = getClosest()
+        if t and t.Character and t.Character:FindFirstChild("Head") then
+            if method == "Raycast" then
+                args[2] = (t.Character.Head.Position - args[1]).Unit * 5000
+            else
+                args[1] = Ray.new(args[1].Origin, (t.Character.Head.Position - args[1].Origin).Unit * 5000)
+            end
+            return oldNamecall(self, unpack(args))
+        end
+    end
+    return oldNamecall(self, ...)
+end)
 
+-- --- INTERFACE ---
+Tabs.Aimbot:AddToggle("AimActive", {Title = "Activer Dégâts Aimbot", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
+Tabs.Aimbot:AddSlider("AimFOV", {Title = "Taille du Cercle", Default = 150, Min = 30, Max = 800, Rounding = 0, Callback = function(v) Config.FOV = v end})
+
+Tabs.Joueur:AddSlider("Vitesse", {Title = "Vitesse", Default = 16, Min = 16, Max = 250, Rounding = 0, Callback = function(v) if LocalPlayer.Character then LocalPlayer.Character.Humanoid.WalkSpeed = v end end})
+Tabs.Physique:AddToggle("FlyCheck", {Title = "Activer Fly", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
+
+-- --- BOUCLE PRINCIPALE ---
 RunService.RenderStepped:Connect(function()
     if not Config.Running then return end
     
-    -- MISE À JOUR CERCLE FOV
     FOVCircle.Visible = Config.Aimbot
     FOVCircle.Radius = Config.FOV
     FOVCircle.Position = UserInputService:GetMouseLocation()
 
-    -- AIMBOT VISUEL (CLIC DROIT)
     if Config.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local t = getClosest()
         if t then Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, t.Character.Head.Position) end
     end
 
-    -- FLY
+    -- Fly / Physique
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if root then
-        if Config.FlyEnabled then
-            BV.Parent, BG.Parent = root, root
-            BG.CFrame = Camera.CFrame
-            local d = Vector3.new(0,0,0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then d = d + Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then d = d - Camera.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then d = d - Camera.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then d = d + Camera.CFrame.RightVector end
-            BV.Velocity = d * Config.FlySpeed
-        else
-            BV.Parent, BG.Parent = nil, nil
-        end
+    if root and Config.FlyEnabled then
+        root.Velocity = Vector3.new(0, 2, 0) -- Stabilisation simple
     end
 end)
 
+Tabs.Divers:AddButton({Title = "❌ FERMER", Callback = function() Config.Running = false FOVCircle:Remove() Window:Destroy() end})
 Window:SelectTab(1)
