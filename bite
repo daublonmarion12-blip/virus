@@ -1,157 +1,149 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
-local Window = Fluent:CreateWindow({
-    Title = "Xeno x Fluent | Ultimate Hub v2",
-    SubTitle = "par Gemini",
+-- CONFIGURATION
+local PRO_KEY = "200988273645" 
+local WORKINK_LINK = "https://work.ink/2dLc/key"
+
+-- FENÊTRE DE LOGIN
+local LoginWindow = Fluent:CreateWindow({
+    Title = "Xeno Hub | Authentification",
+    SubTitle = "Accès par Work.ink",
     TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
+    Size = UDim2.fromOffset(400, 320),
     Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
+    Theme = "Dark"
 })
 
-local Tabs = {
-    Main = Window:AddTab({ Title = "Mouvement", Icon = "run" }),
-    Player = Window:AddTab({ Title = "Joueur", Icon = "user" }),
-    Combat = Window:AddTab({ Title = "Combat", Icon = "crosshair" }),
-    Visuals = Window:AddTab({ Title = "Visuels", Icon = "eye" })
-}
+local LoginTab = LoginWindow:AddTab({ Title = "Clé", Icon = "lock" })
 
--- VARIABLES
-local lp = game.Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+LoginTab:AddParagraph({
+    Title = "Système de Clé",
+    Content = "Obtenez la clé via le lien ci-dessous pour débloquer le script."
+})
 
-local Flying = false
-local FlySpeed = 50
-local AimbotEnabled = false
-local ESPEnabled = false
-local FOVRadius = 150
-local StickyTarget = nil
-local InfiniteJumpEnabled = false
-
--- CERCLE FOV
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 1
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-FOVCircle.Transparency = 0.5
-FOVCircle.Visible = false
-
--- LOGIQUE INFINITE JUMP
-UIS.JumpRequest:Connect(function()
-    if InfiniteJumpEnabled then
-        lp.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+LoginTab:AddButton({
+    Title = "Copier le lien de la clé",
+    Description = "Colle ce lien dans ton navigateur",
+    Callback = function()
+        setclipboard(WORKINK_LINK)
+        Fluent:Notify({Title = "Copié !", Content = "Lien Work.ink copié.", Duration = 5})
     end
-end)
+})
 
--- LOGIQUE ESP BOX (DRAWING)
-local Boxes = {}
-local function CreateESP(player)
-    local box = Drawing.new("Square")
-    box.Thickness = 1
-    box.Filled = false
-    box.Color = Color3.fromRGB(255, 0, 0)
-    box.Transparency = 1
-    box.Visible = false
-    Boxes[player] = box
-end
+LoginTab:AddInput("KeyInput", {
+    Title = "Entrez la clé ici",
+    Placeholder = "Clé commençant par 2009...",
+    Callback = function(Value)
+        if Value == PRO_KEY then
+            Fluent:Notify({Title = "Succès", Content = "Chargement du menu...", Duration = 3})
+            task.wait(1)
+            LoginWindow:Destroy()
+            
+            ---------------------------------------------------------
+            -- TON SCRIPT DE CHEAT (FLY, ESP, AIMBOT, ETC.)
+            ---------------------------------------------------------
+            local MainWin = Fluent:CreateWindow({
+                Title = "Xeno Hub | Premium",
+                SubTitle = "v2.5",
+                TabWidth = 160,
+                Size = UDim2.fromOffset(580, 460),
+                Acrylic = true,
+                Theme = "Dark",
+                MinimizeKey = Enum.KeyCode.LeftControl
+            })
 
-for _, v in pairs(game.Players:GetPlayers()) do
-    if v ~= lp then CreateESP(v) end
-end
+            local Tabs = {
+                Main = MainWin:AddTab({ Title = "Mouvement", Icon = "run" }),
+                Player = MainWin:AddTab({ Title = "Joueur", Icon = "user" }),
+                Combat = MainWin:AddTab({ Title = "Combat", Icon = "crosshair" }),
+                Visuals = MainWin:AddTab({ Title = "Visuels", Icon = "eye" })
+            }
 
-game.Players.PlayerAdded:Connect(function(v) if v ~= lp then CreateESP(v) end end)
-game.Players.PlayerRemoving:Connect(function(v) if Boxes[v] then Boxes[v]:Destroy() Boxes[v] = nil end end)
+            local lp = game.Players.LocalPlayer
+            local camera = workspace.CurrentCamera
+            local UIS = game:GetService("UserInputService")
+            local RunService = game:GetService("RunService")
+            local Flying, FlySpeed, AimbotEnabled, ESPEnabled, FOVRadius = false, 50, false, false, 150
+            local StickyTarget = nil
+            local InfJump = false
 
--- BOUCLE PRINCIPALE
-RunService.RenderStepped:Connect(function()
-    FOVCircle.Position = UIS:GetMouseLocation()
-    FOVCircle.Radius = FOVRadius
+            UIS.JumpRequest:Connect(function() if InfJump then lp.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping") end end)
 
-    -- Update ESP
-    for player, box in pairs(Boxes) do
-        if ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
-            local rootPart = player.Character.HumanoidRootPart
-            local pos, onScreen = camera:WorldToViewportPoint(rootPart.Position)
-            if onScreen then
-                local sizeX = 1000 / pos.Z
-                local sizeY = 2000 / pos.Z
-                box.Size = Vector2.new(sizeX, sizeY)
-                box.Position = Vector2.new(pos.X - sizeX / 2, pos.Y - sizeY / 2)
-                box.Visible = true
-            else box.Visible = false end
-        else box.Visible = false end
-    end
-
-    -- Update Aimbot
-    if AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        if not StickyTarget then
-            local shortestDistance = FOVRadius
-            local mousePos = UIS:GetMouseLocation()
-            for _, v in pairs(game.Players:GetPlayers()) do
-                if v ~= lp and v.Character and v.Character:FindFirstChild("Head") and v.Character.Humanoid.Health > 0 then
-                    local p, oS = camera:WorldToViewportPoint(v.Character.Head.Position)
-                    if oS then
-                        local dist = (Vector2.new(p.X, p.Y) - mousePos).Magnitude
-                        if dist < shortestDistance then shortestDistance = dist StickyTarget = v end
-                    end
-                end
+            local Boxes = {}
+            local function CreateESP(p)
+                local b = Drawing.new("Square")
+                b.Thickness, b.Color, b.Transparency, b.Visible = 1, Color3.fromRGB(255, 0, 0), 1, false
+                Boxes[p] = b
             end
-        end
-        if StickyTarget and StickyTarget.Character and StickyTarget.Character:FindFirstChild("Head") then
-            camera.CFrame = CFrame.new(camera.CFrame.Position, StickyTarget.Character.Head.Position)
-        end
-    else StickyTarget = nil end
-end)
+            for _, v in pairs(game.Players:GetPlayers()) do if v ~= lp then CreateESP(v) end end
+            game.Players.PlayerAdded:Connect(function(v) if v ~= lp then CreateESP(v) end end)
 
--- LOGIQUE FLY
-local function startFly()
-    local char = lp.Character or lp.CharacterAdded:Wait()
-    local root = char:WaitForChild("HumanoidRootPart")
-    char.Humanoid.PlatformStand = true
-    local bv = Instance.new("BodyVelocity", root)
-    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    local bg = Instance.new("BodyGyro", root)
-    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    task.spawn(function()
-        while Flying do
-            local dir = Vector3.new(0,0,0)
-            if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + camera.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - camera.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - camera.CFrame.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + camera.CFrame.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
-            bg.CFrame = camera.CFrame
-            bv.Velocity = dir * FlySpeed
-            task.wait()
+            RunService.RenderStepped:Connect(function()
+                for player, box in pairs(Boxes) do
+                    if ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
+                        local pos, onScreen = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
+                        if onScreen then
+                            local sX, sY = 1000 / pos.Z, 2000 / pos.Z
+                            box.Size, box.Position, box.Visible = Vector2.new(sX, sY), Vector2.new(pos.X - sX / 2, pos.Y - sY / 2), true
+                        else box.Visible = false end
+                    else box.Visible = false end
+                end
+
+                if AimbotEnabled and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+                    if not StickyTarget then
+                        local mousePos, dist = UIS:GetMouseLocation(), FOVRadius
+                        for _, v in pairs(game.Players:GetPlayers()) do
+                            if v ~= lp and v.Character and v.Character:FindFirstChild("Head") and v.Character.Humanoid.Health > 0 then
+                                local p, oS = camera:WorldToViewportPoint(v.Character.Head.Position)
+                                if oS then
+                                    local d = (Vector2.new(p.X, p.Y) - mousePos).Magnitude
+                                    if d < dist then dist = d StickyTarget = v end
+                                end
+                            end
+                        end
+                    end
+                    if StickyTarget and StickyTarget.Character then
+                        camera.CFrame = CFrame.new(camera.CFrame.Position, StickyTarget.Character.Head.Position)
+                    end
+                else StickyTarget = nil end
+            end)
+
+            local function startFly()
+                local char = lp.Character or lp.CharacterAdded:Wait()
+                local root = char:WaitForChild("HumanoidRootPart")
+                char.Humanoid.PlatformStand = true
+                local bv = Instance.new("BodyVelocity", root)
+                bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                local bg = Instance.new("BodyGyro", root)
+                bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                task.spawn(function()
+                    while Flying do
+                        local dir = Vector3.new(0,0,0)
+                        if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + camera.CFrame.LookVector end
+                        if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - camera.CFrame.LookVector end
+                        if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - camera.CFrame.RightVector end
+                        if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + camera.CFrame.RightVector end
+                        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
+                        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
+                        bg.CFrame = camera.CFrame
+                        bv.Velocity = dir * FlySpeed
+                        task.wait()
+                    end
+                    bv:Destroy() bg:Destroy()
+                    char.Humanoid.PlatformStand = false
+                end)
+            end
+
+            Tabs.Main:AddToggle("f", {Title = "Activer le Vol", Default = false}):OnChanged(function(v) Flying = v if v then startFly() end end)
+            Tabs.Main:AddSlider("fs", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
+            Tabs.Player:AddSlider("ws", {Title = "WalkSpeed", Default = 16, Min = 16, Max = 250, Callback = function(v) if lp.Character then lp.Character.Humanoid.WalkSpeed = v end end})
+            Tabs.Player:AddToggle("ij", {Title = "Infinite Jump", Default = false}):OnChanged(function(v) InfJump = v end)
+            Tabs.Combat:AddToggle("al", {Title = "Hard Sticky Lock", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
+            Tabs.Visuals:AddToggle("eb", {Title = "ESP Box (Tout le monde)", Default = false}):OnChanged(function(v) ESPEnabled = v end)
+
+            MainWin:SelectTab(1)
+        else
+            Fluent:Notify({Title = "Erreur", Content = "Clé invalide.", Duration = 3})
         end
-        bv:Destroy() bg:Destroy()
-        if char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
-    end)
-end
-
--- INTERFACE
--- Mouvement
-Tabs.Main:AddToggle("Fly", {Title = "Fly Directionnel", Default = false}):OnChanged(function(v) Flying = v if v then startFly() end end)
-Tabs.Main:AddSlider("FSpeed", {Title = "Vitesse Vol", Default = 50, Min = 10, Max = 300, Rounding = 0, Callback = function(v) FlySpeed = v end})
-
--- Joueur
-Tabs.Player:AddSlider("Wspeed", {Title = "Vitesse de Marche (WalkSpeed)", Default = 16, Min = 16, Max = 250, Rounding = 0, Callback = function(v)
-    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-        lp.Character.Humanoid.WalkSpeed = v
     end
-end})
-Tabs.Player:AddToggle("InfJump", {Title = "Saut Infini (Infinite Jump)", Default = false}):OnChanged(function(v) InfiniteJumpEnabled = v end)
-
--- Combat
-Tabs.Combat:AddToggle("Aim", {Title = "Hard Sticky Lock", Default = false}):OnChanged(function(v) AimbotEnabled = v end)
-Tabs.Combat:AddToggle("SFOV", {Title = "Afficher Cercle FOV", Default = false}):OnChanged(function(v) FOVCircle.Visible = v end)
-Tabs.Combat:AddSlider("FOVR", {Title = "Taille FOV", Default = 150, Min = 10, Max = 800, Rounding = 0, Callback = function(v) FOVRadius = v end})
-
--- Visuels
-Tabs.Visuals:AddToggle("ESP", {Title = "ESP Box (Full Map)", Default = false}):OnChanged(function(v) ESPEnabled = v end)
-
-Window:SelectTab(1)
-Fluent:Notify({Title = "Xeno Loaded", Content = "WalkSpeed & InfJump ajoutés !", Duration = 5})
+})
