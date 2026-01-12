@@ -1,73 +1,53 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
--- Nettoyage forcé des anciens menus pour éviter les écrans vides
-for _, v in pairs(game:GetService("CoreGui"):GetChildren()) do
-    if v:IsA("ScreenGui") and (v.Name:find("Fluent") or v.Name == "Main") then
-        v:Destroy()
-    end
-end
+local Window = Fluent:CreateWindow({
+    Title = "VIRUS/BITE - FIX V3",
+    SubTitle = "par 2009",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false, -- Désactivé pour booster les FPS
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Combat = Window:AddTab({ Title = "Combat", Icon = "target" }),
+    Physique = Window:AddTab({ Title = "Physique", Icon = "activity" })
+}
 
 local Config = {
     Aimbot = false,
     FOV = 150,
-    FlyEnabled = false,
-    FlySpeed = 50,
-    Running = true
+    Fly = false,
+    Speed = 50
 }
 
--- Cercle FOV
+-- AJOUT DES BOUTONS (Même si le reste bug, les boutons seront là)
+Tabs.Combat:AddToggle("Aim", {Title = "Activer Aimbot", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
+Tabs.Combat:AddSlider("FOV", {Title = "Rayon FOV", Default = 150, Min = 50, Max = 800, Callback = function(v) Config.FOV = v end})
+
+Tabs.Physique:AddToggle("Fly", {Title = "Activer Fly", Default = false}):OnChanged(function(v) Config.Fly = v end)
+Tabs.Physique:AddSlider("Vitesse", {Title = "Vitesse", Default = 50, Min = 10, Max = 300, Callback = function(v) Config.Speed = v end})
+
+-- LOGIQUE AIMBOT
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 2
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Visible = false
+FOVCircle.Thickness = 1.5
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 
-local Window = Fluent:CreateWindow({
-    Title = "VIRUS/BITE - FIX FINAL",
-    SubTitle = "par 2009",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl 
-})
-
--- On crée les onglets
-local Tabs = {
-    Combat = Window:AddTab({ Title = "Combat", Icon = "target" }),
-    Mouvement = Window:AddTab({ Title = "Mouvement", Icon = "wind" }),
-    Divers = Window:AddTab({ Title = "Divers", Icon = "settings" })
-}
-
--- ON AJOUTE LES BOUTONS IMMÉDIATEMENT
-Tabs.Combat:AddToggle("AimToggle", {Title = "Activer l'Aimbot", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
-Tabs.Combat:AddSlider("AimFOV", {Title = "Rayon FOV", Default = 150, Min = 30, Max = 800, Callback = function(v) Config.FOV = v end})
-
-Tabs.Mouvement:AddToggle("FlyToggle", {Title = "Activer Fly", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
-Tabs.Mouvement:AddSlider("FlySpeed", {Title = "Vitesse Fly", Default = 50, Min = 10, Max = 300, Callback = function(v) Config.FlySpeed = v end})
-
-Tabs.Divers:AddButton({Title = "Détruire le script", Callback = function() Config.Running = false FOVCircle:Remove() Window:Destroy() end})
-
--- Logique de visée simplifiée (plus stable pour FPS Clicker)
-local function getClosest()
-    local target, dist = nil, Config.FOV
-    local mouseLoc = UserInputService:GetMouseLocation()
-
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-            local head = p.Character.Head
-            local hum = p.Character:FindFirstChild("Humanoid")
-            if hum and hum.Health > 0 then
-                local pos, onS = Camera:WorldToViewportPoint(head.Position)
-                if onS then
-                    local mag = (Vector2.new(pos.X, pos.Y) - mouseLoc).Magnitude
-                    if mag < dist then
-                        target = p
-                        dist = mag
-                    end
+local function getTarget()
+    local target = nil
+    local dist = Config.FOV
+    for _, p in pairs(game.Players:GetPlayers()) do
+        if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+            local pos, vis = workspace.CurrentCamera:WorldToViewportPoint(p.Character.Head.Position)
+            if vis then
+                local mag = (Vector2.new(pos.X, pos.Y) - game:GetService("UserInputService"):GetMouseLocation()).Magnitude
+                if mag < dist then
+                    target = p
+                    dist = mag
                 end
             end
         end
@@ -75,30 +55,24 @@ local function getClosest()
     return target
 end
 
--- Boucle principale
-RunService.RenderStepped:Connect(function()
-    if not Config.Running then return end
-    
+game:GetService("RunService").RenderStepped:Connect(function()
     FOVCircle.Visible = Config.Aimbot
     FOVCircle.Radius = Config.FOV
-    FOVCircle.Position = UserInputService:GetMouseLocation()
+    FOVCircle.Position = game:GetService("UserInputService"):GetMouseLocation()
 
-    if Config.Aimbot then
-        local t = getClosest()
-        -- Visée automatique sur le clic droit
-        if t and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-            local goal = t.Character.Head.Position
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, goal), 0.2) -- Lissage pour éviter les bans
+    if Config.Aimbot and game:GetService("UserInputService"):IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local t = getTarget()
+        if t then
+            workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, t.Character.Head.Position)
         end
     end
-    
-    -- Fly
-    if Config.FlyEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local root = LocalPlayer.Character.HumanoidRootPart
-        local d = Vector3.new(0, 0.5, 0)
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then d = d + (Camera.CFrame.LookVector * Config.FlySpeed) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then d = d - (Camera.CFrame.LookVector * Config.FlySpeed) end
-        root.Velocity = d
+
+    if Config.Fly and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local root = game.Players.LocalPlayer.Character.HumanoidRootPart
+        root.Velocity = Vector3.new(0, 2, 0)
+        if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then
+            root.CFrame = root.CFrame + (workspace.CurrentCamera.CFrame.LookVector * (Config.Speed / 10))
+        end
     end
 end)
 
