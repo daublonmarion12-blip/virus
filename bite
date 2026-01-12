@@ -5,9 +5,9 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Nettoyage pour éviter les bugs visuels
+-- Nettoyage forcé des anciens menus pour éviter les écrans vides
 for _, v in pairs(game:GetService("CoreGui"):GetChildren()) do
-    if v:IsA("ScreenGui") and (v.Name:find("Fluent") or v:FindFirstChild("Main")) then
+    if v:IsA("ScreenGui") and (v.Name:find("Fluent") or v.Name == "Main") then
         v:Destroy()
     end
 end
@@ -20,13 +20,14 @@ local Config = {
     Running = true
 }
 
+-- Cercle FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2
-FOVCircle.Color = Color3.fromRGB(255, 0, 0)
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Visible = false
 
 local Window = Fluent:CreateWindow({
-    Title = "VIRUS/BITE - VRAI AIMBOT",
+    Title = "VIRUS/BITE - FIX FINAL",
     SubTitle = "par 2009",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
@@ -34,13 +35,23 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl 
 })
 
+-- On crée les onglets
 local Tabs = {
     Combat = Window:AddTab({ Title = "Combat", Icon = "target" }),
     Mouvement = Window:AddTab({ Title = "Mouvement", Icon = "wind" }),
     Divers = Window:AddTab({ Title = "Divers", Icon = "settings" })
 }
 
--- --- DÉTECTION DE CIBLE ---
+-- ON AJOUTE LES BOUTONS IMMÉDIATEMENT
+Tabs.Combat:AddToggle("AimToggle", {Title = "Activer l'Aimbot", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
+Tabs.Combat:AddSlider("AimFOV", {Title = "Rayon FOV", Default = 150, Min = 30, Max = 800, Callback = function(v) Config.FOV = v end})
+
+Tabs.Mouvement:AddToggle("FlyToggle", {Title = "Activer Fly", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
+Tabs.Mouvement:AddSlider("FlySpeed", {Title = "Vitesse Fly", Default = 50, Min = 10, Max = 300, Callback = function(v) Config.FlySpeed = v end})
+
+Tabs.Divers:AddButton({Title = "Détruire le script", Callback = function() Config.Running = false FOVCircle:Remove() Window:Destroy() end})
+
+-- Logique de visée simplifiée (plus stable pour FPS Clicker)
 local function getClosest()
     local target, dist = nil, Config.FOV
     local mouseLoc = UserInputService:GetMouseLocation()
@@ -53,7 +64,10 @@ local function getClosest()
                 local pos, onS = Camera:WorldToViewportPoint(head.Position)
                 if onS then
                     local mag = (Vector2.new(pos.X, pos.Y) - mouseLoc).Magnitude
-                    if mag < dist then target = p dist = mag end
+                    if mag < dist then
+                        target = p
+                        dist = mag
+                    end
                 end
             end
         end
@@ -61,33 +75,7 @@ local function getClosest()
     return target
 end
 
--- --- SILENT AIM (FORCE LES DÉGÂTS DANS FPS CLICKER) ---
-local old; old = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    if Config.Aimbot and (method == "Raycast" or method == "FindPartOnRay") then
-        local t = getClosest()
-        if t then
-            -- On détourne le rayon de tir vers la tête de l'ennemi
-            if method == "Raycast" then
-                args[2] = (t.Character.Head.Position - args[1]).Unit * 5000
-            end
-            return old(self, unpack(args))
-        end
-    end
-    return old(self, ...)
-end)
-
--- --- INTERFACE ---
-Tabs.Combat:AddToggle("AimActive", {Title = "Activer Aimbot (Force Dégâts)", Default = false}):OnChanged(function(v) Config.Aimbot = v end)
-Tabs.Combat:AddSlider("AimFOV", {Title = "Rayon du FOV", Default = 150, Min = 30, Max = 800, Callback = function(v) Config.FOV = v end})
-
-Tabs.Mouvement:AddToggle("Fly", {Title = "Activer Fly", Default = false}):OnChanged(function(v) Config.FlyEnabled = v end)
-Tabs.Mouvement:AddSlider("Vitesse", {Title = "Vitesse Fly", Default = 50, Min = 10, Max = 300, Callback = function(v) Config.FlySpeed = v end})
-
-Tabs.Divers:AddButton({Title = "❌ Supprimer Script", Callback = function() Config.Running = false FOVCircle:Remove() Window:Destroy() end})
-
--- --- BOUCLE DE RENDU ---
+-- Boucle principale
 RunService.RenderStepped:Connect(function()
     if not Config.Running then return end
     
@@ -97,9 +85,10 @@ RunService.RenderStepped:Connect(function()
 
     if Config.Aimbot then
         local t = getClosest()
-        -- Verrouillage Caméra (Optionnel, le Silent Aim fait déjà le travail)
+        -- Visée automatique sur le clic droit
         if t and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, t.Character.Head.Position)
+            local goal = t.Character.Head.Position
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, goal), 0.2) -- Lissage pour éviter les bans
         end
     end
     
