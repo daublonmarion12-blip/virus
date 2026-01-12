@@ -6,7 +6,7 @@ local WORKINK_LINK = "https://work.ink/2dLc/key"
 
 -- FENÊTRE DE LOGIN
 local LoginWindow = Fluent:CreateWindow({
-    Title = "Xeno Hub | Authentification",
+    Title = "Xeno Hub | Login",
     SubTitle = "Accès par Work.ink",
     TabWidth = 160,
     Size = UDim2.fromOffset(400, 320),
@@ -16,58 +16,55 @@ local LoginWindow = Fluent:CreateWindow({
 
 local LoginTab = LoginWindow:AddTab({ Title = "Clé", Icon = "lock" })
 
-LoginTab:AddButton({
-    Title = "Copier le lien de la clé",
-    Callback = function()
-        setclipboard(WORKINK_LINK)
-        Fluent:Notify({Title = "Copié !", Content = "Lien copié.", Duration = 5})
-    end
-})
-
 LoginTab:AddInput("KeyInput", {
-    Title = "Entrez la clé ici",
-    Placeholder = "Clé : 2009...",
+    Title = "Entrez la clé",
     Callback = function(Value)
         if Value == PRO_KEY then
-            Fluent:Notify({Title = "Succès", Content = "Clé valide ! Chargement...", Duration = 3})
+            Fluent:Notify({Title = "Succès", Content = "Démarrage du menu...", Duration = 3})
             
-            -- Délai de sécurité pour laisser le temps au script de respirer
+            -- ON FERME LA LOGIN WINDOW
             task.wait(0.5)
             LoginWindow:Destroy()
-            task.wait(0.5) 
+            task.wait(1) -- ON LAISSE DU TEMPS AU JEU
             
             ---------------------------------------------------------
-            -- CRÉATION DU MENU PRINCIPAL (AVEC SÉCURITÉ)
+            -- CRÉATION DU MENU DE CHEAT (VERSION SIMPLIFIÉE)
             ---------------------------------------------------------
-            local MainWin = nil
-            local success, err = pcall(function()
-                MainWin = Fluent:CreateWindow({
-                    Title = "Xeno Hub | Premium",
-                    SubTitle = "v2.5",
-                    TabWidth = 160,
-                    Size = UDim2.fromOffset(580, 460),
-                    Acrylic = true,
-                    Theme = "Dark"
-                })
-            end)
+            local MainWin = Fluent:CreateWindow({
+                Title = "Xeno Hub | Menu",
+                SubTitle = "v2.5",
+                TabWidth = 160,
+                Size = UDim2.fromOffset(500, 400),
+                Acrylic = false, -- On désactive l'acrylique pour éviter les bugs de vue
+                Theme = "Dark"
+            })
 
-            -- On n'ajoute les onglets QUE si la fenêtre a été créée sans erreur
-            if success and MainWin then
-                local MainTab = MainWin:AddTab({ Title = "Mouvement", Icon = "run" })
-                local VisualTab = MainWin:AddTab({ Title = "Visuels", Icon = "eye" })
+            local MainTab = MainWin:AddTab({ Title = "Mouvement", Icon = "run" })
+            local lp = game.Players.LocalPlayer
 
-                local lp = game.Players.LocalPlayer
-                local Flying, FlySpeed = false, 50
+            MainTab:AddSlider("WalkSpeed", {
+                Title = "Vitesse de marche",
+                Default = 16,
+                Min = 16,
+                Max = 200,
+                Callback = function(v)
+                    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                        lp.Character.Humanoid.WalkSpeed = v
+                    end
+                end
+            })
 
-                MainTab:AddToggle("f", {Title = "Vol (Fly)", Default = false}):OnChanged(function(v) Flying = v end)
-                MainTab:AddSlider("fs", {Title = "Vitesse", Default = 50, Min = 10, Max = 300, Callback = function(v) FlySpeed = v end})
-                
-                MainWin:SelectTab(1)
-            else
-                warn("Erreur lors de la création de la fenêtre : " .. tostring(err))
-            end
+            MainTab:AddButton({
+                Title = "Reset Character",
+                Callback = function()
+                    if lp.Character then lp.Character:BreakJoints() end
+                end
+            })
+
+            MainWin:SelectTab(1)
+            Fluent:Notify({Title = "Prêt", Content = "Menu chargé avec succès !", Duration = 5})
         else
-            Fluent:Notify({Title = "Erreur", Content = "Clé invalide.", Duration = 3})
+            Fluent:Notify({Title = "Erreur", Content = "Mauvaise clé.", Duration = 3})
         end
     end
 })
